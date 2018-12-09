@@ -93,17 +93,6 @@ public class ChatClient {
 				System.exit(0);
 				return;
 			}
-			//String connStatus = inFromServer.readLine();
-			//System.out.println(connStatus);
-			/*StringTokenizer tokens = new StringTokenizer(modifiedSentence, "|");
-            if(tokens.countTokens() == 1){
-              System.out.println("aqui");
-              printMessage(tokens.nextToken());
-            }
-            else{
-              printTerminalMessage(tokens.nextToken());
-              printMessage(tokens.nextToken());
-            }*/
             String[] tokens = msg.split(" ");
             if(tokens[0].equals("MESSAGE")){
 				printMessage(tokens[1] + ": " + msg.substring(8 + tokens[1].length()) + "\n");
@@ -111,6 +100,8 @@ public class ChatClient {
 				printMessage(tokens[1] + " mudou de nome para " + tokens[2] + "\n");
 			}else if(tokens[0].equals("JOINED")){
 				printMessage(tokens[1] + " juntou-se ao chat\n");
+			}else if(tokens[0].equals("PRIVATEMSG")){
+				printMessage(tokens[1] + " mandou-lhe uma mensagem privada:" + msg.substring(11 + tokens[1].length()) + "\n");
 			}else{
 				printMessage(msg + "\n");
 			}

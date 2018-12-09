@@ -329,12 +329,34 @@ public class Server
 						broadcastMsg(sc,"JOINED " + attr[0].replace("\n","").replace("\r",""),attr);
 					}else{
 						//User has to register a nickname first
+						System.out.println(sc.getRemoteAddress() + "  tried joined a chatroom without registering");
+						sendMsg(sc,"ERROR");
+					}
+					
+					
+				}else if(cmd.equals("/priv")){
+					//Send private message to user
+					if(attr != null){
+						if(attr[0] != null && !attr[2].equals("init")){
+								
+							boolean sent = sendPrivate(sc,"PRIVATEMSG " + attr[0].replace("\n","").replace("\r","") + "  " + message.substring(par[0].length() + par[1].length() + 2).replace("\n","").replace("\r",""),attr,par[1]);
+							if(sent){
+								sendMsg(sc,"OK");
+							}else{
+								sendMsg(sc,"ERROR");
+							}
+						}else{
+							sendMsg(sc,"ERROR");
+						}						
+					}else{
+						sendMsg(sc,"ERROR");
 					}
 					
 					
 				}else{
 					//Invalid command
 					System.out.println("Invalid command or syntax");
+					sendMsg(sc,"ERROR");
 				}
 				
 			}
@@ -352,25 +374,6 @@ public class Server
 		}
 		//System.out.println("RECEIVED: "+ message);
 		buffer.flip();
-		//InetSocketAddress isa = new InetSocketAddress( port );
-		//ss.bind( isa );
-
-      // Create a new Selector for selecting
-      //selector = Selector.open();
-
-		/*Set<SelectionKey> keys = selector.selectedKeys();
-		Iterator<SelectionKey> it = keys.iterator();
-		while (it.hasNext()) {
-			//System.out.println("One for each connect");
-			// Get a key representing one of bits of I/O activity
-			SelectionKey key = it.next();
-			if(key.isAcceptable())
-				continue;
-			SocketChannel scAux = (SocketChannel)key.channel();
-			
-			scAux.write(buffer);
-			buffer.rewind();
-		}*/
 		
 		buffer.clear();
 
@@ -383,6 +386,38 @@ public class Server
 	}
 	
 	static private void broadcastMsg(SocketChannel s,String msg, String[] attr) throws IOException{
+    
+		msg = msg + "\n";
+
+		ByteBuffer auxBuffer = ByteBuffer.allocate( 16384 );
+		auxBuffer = ByteBuffer.wrap(msg.getBytes(charset));
+
+		selector.wakeup();
+
+		Set<SelectionKey> keys = selector.keys();
+		Iterator<SelectionKey> it = keys.iterator();
+		while (it.hasNext()) {
+			SelectionKey key = it.next();
+			String[] auxAttr = (String[])key.attachment();
+			if(auxAttr == null)
+				continue;
+			if(auxAttr[1] == null)
+				continue;
+			if(!auxAttr[1].equals(attr[1]))
+				continue;
+			if(auxAttr[0].equals(attr[0]))
+				continue;
+			if(!auxAttr[2].equals("inside"))
+				continue;
+			
+			SocketChannel scAux = (SocketChannel)key.channel();
+			
+			while(auxBuffer.hasRemaining())
+				scAux.write(auxBuffer);
+			auxBuffer.rewind();
+		}
+	}
+	static private boolean sendPrivate(SocketChannel s,String msg, String[] attr,String other) throws IOException{
     
     msg = msg + "\n";
     
@@ -398,34 +433,21 @@ public class Server
 		String[] auxAttr = (String[])key.attachment();
 		if(auxAttr == null)
 			continue;
-		if(auxAttr[1] == null)
-			continue;
-		if(!auxAttr[1].equals(attr[1]))
+		if(auxAttr[0] == null)
 			continue;
 		if(auxAttr[0].equals(attr[0]))
 			continue;
-		if(!auxAttr[2].equals("inside"))
-			continue;
 		
+		if(!auxAttr[0].replace("\n","").replace("\r","").equals(other))
+			continue;
 		SocketChannel scAux = (SocketChannel)key.channel();
 		
         while(auxBuffer.hasRemaining())
 			scAux.write(auxBuffer);
 		auxBuffer.rewind();
+		return true;
 	}
-
-     /*   // It's incoming data on a connection -- process it
-        tmp = (SocketChannel)key.channel();
-        tmp.configureBlocking(false);
-
-        while(bufferTmp.hasRemaining())
-          tmp.write(bufferTmp);
-        bufferTmp.rewind();
-      }catch(Exception ex) {
-        // System.out.println("ERROR: Failed to write.");
-      }
-
-    }*/
+	return false;
   
 	}
 }
