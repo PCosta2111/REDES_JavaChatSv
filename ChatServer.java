@@ -247,9 +247,6 @@ public class ChatServer
 					if(!attr[2].equals("inside"))
 						broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
 					
-					attr = new String[3];
-					attr[2] = "init";
-					sc.keyFor(selector).attach(attr);
 					nicknames.remove(attr[0]);
 					Room r = getRoom(chatRooms,attr[1]);
 					r.removeMember();
@@ -258,6 +255,10 @@ public class ChatServer
 						System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
 					}
 					System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) disconnected ");
+					
+					attr = new String[3];
+					attr[2] = "init";
+					sc.keyFor(selector).attach(attr);
 				}
 					
 			}else{
