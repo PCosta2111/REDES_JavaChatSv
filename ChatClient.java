@@ -75,6 +75,9 @@ public class ChatClient {
          new DataOutputStream(this.clientSocket.getOutputStream());
          
       outToServer.write((new String(message + '\n')).getBytes(charset));
+      if(message.charAt(0) == '/'){
+		  message = message.substring(1);
+	  }
 		printMessage("Tu: " + message + "\n");
     }
 
@@ -103,7 +106,7 @@ public class ChatClient {
 			}else if(tokens[0].equals("PRIVATEMSG")){
 				printMessage(tokens[1] + " mandou-lhe uma mensagem privada:" + msg.substring(11 + tokens[1].length()) + "\n");
 			}else if(tokens[0].equals("LEFT")){
-				printMessage(tokens[1] + " saíu da sala.\n");
+				printMessage(tokens[1] + " saiu da sala.\n");
 			}else{
 				printMessage(msg + "\n");
 			}
