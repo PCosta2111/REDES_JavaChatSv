@@ -122,6 +122,23 @@ public class ChatServer
                 Socket s = null;
                 try {
                   s = sc.socket();
+                  String[] attr = new String[3];
+					attr = (String[])sc.keyFor(selector).attachment();
+					if(attr[1] != null){
+						nicknames.remove(attr[0]);
+						Room r = getRoom(chatRooms,attr[1]);
+						r.removeMember();
+						
+						if(r.isEmpty()){
+							chatRooms.remove(r);
+							System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
+						}
+						
+						if(attr[2].equals("inside"))
+							broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
+						//sendMsg(sc,"BYE");
+						System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) disconnected ");
+					}
                   System.out.println( "Closing connection to "+s );
                   s.close();
                 } catch( IOException ie ) {
@@ -188,125 +205,39 @@ public class ChatServer
 		}
 
 		// Decode and print the message to stdout
-		String message = decoder.decode(buffer).toString();
+		String message1 = decoder.decode(buffer).toString();
 		
-		//Get socket attachment
-		//And attachment contains info regarding the nickname and joined room
-		//The attachment is [Nick , Room, State]
-		String[] attr = new String[3];
-		if(sc.keyFor(selector).attachment() == null) {
-			sc.keyFor(selector).attach(new String[3]);
-		}else{
-			attr = (String[])sc.keyFor(selector).attachment();
-		}
+		String[] cmd_chain = message1.split("\n");
 		
-		//Is it a command?
-		if(message.charAt(0) == '/' && message.charAt(1) != '/'){
-			String[] par = message.split(" ");
-			String cmd = par[0];
-			if(par.length < 2){
-				//Either /leave, /bye or invalid command
-				if(cmd.replace("\n","").replace("\r","").equals("/leave")){
-					
-					//Check if the user is registered
-					if(attr[0] != null){
-						//Check if he is in a chat room
-						if(attr[2].equals("inside")){
-							String currRoom = attr[1];
-							
-							sendMsg(sc,"OK");
-							broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
-							
-							System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) left " + attr[1].replace("\n","").replace("\r",""));
-							Room r = getRoom(chatRooms,attr[1]);
-							r.removeMember();
-							if(r.isEmpty()){
-								chatRooms.remove(r);
-								System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
-							}
-							attr[1] = null;
-							attr[2] = "outside";
-							sc.keyFor(selector).attach(attr);
-						}else{
-							//User isn't in a room
-							sendMsg(sc,"ERROR");
-							System.out.println("User outside of room tried to leave.");
-						}
-					}else{
-						//User isn't registered
-						sendMsg(sc,"ERROR");
-						System.out.println("Unregistered user tried to leave.");
-						
-					}
-					
-					
-				}else if(cmd.replace("\n","").replace("\r","").equals("/bye")){
-					if(attr[2].equals("inside"))
-						broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
-					sendMsg(sc,"BYE");
-					if(!attr[2].equals("inside"))
-						broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
-					
-					nicknames.remove(attr[0]);
-					Room r = getRoom(chatRooms,attr[1]);
-					r.removeMember();
-					if(r.isEmpty()){
-						chatRooms.remove(r);
-						System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
-					}
-					System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) disconnected ");
-					
-					attr = new String[3];
-					attr[2] = "init";
-					sc.keyFor(selector).attach(attr);
-				}
-					
+		
+		for(String message : cmd_chain){
+			//Get socket attachment
+			//And attachment contains info regarding the nickname and joined room
+			//The attachment is [Nick , Room, State]
+			String[] attr = new String[3];
+			if(sc.keyFor(selector).attachment() == null) {
+				sc.keyFor(selector).attach(new String[3]);
 			}else{
-				//It's either /join or /nick
-				if(cmd.equals("/nick")){
-					String nick = par[1];
-					if(!find(nicknames,nick)){
-						nicknames.add(nick);
-						nicknames.remove(attr[0]);
-						sendMsg(sc,"OK");
-						if(attr[1] == null || attr[2].equals("init")){
-							attr[2] = "outside";
-						}else{
-							//System.out.println("NEWNICK " + attr[0] + " " + nick);		
-							broadcastMsg(sc,"NEWNICK " + attr[0].replace("\n","").replace("\r","") + " " + nick,attr);
-						}
-						attr[0] = nick;
-						sc.keyFor(selector).attach(attr);
-						System.out.println(sc.getRemoteAddress() + " registered as " + nick);
-					}else{
+				attr = (String[])sc.keyFor(selector).attachment();
+			}
+			
+			//Is it a command?
+			if(message.charAt(0) == '/' && message.charAt(1) != '/'){
+				String[] par = message.split(" ");
+				String cmd = par[0];
+				if(par.length < 2){
+					//Either /leave, /bye or invalid command
+					if(cmd.replace("\n","").replace("\r","").equals("/leave")){
+						
+						//Check if the user is registered
 						if(attr[0] != null){
-							String aux = attr[0];
-							aux = aux.replace("\n","").replace("\r","");
-							System.out.println(aux + " tried to register as " + nick);
-						}else{
-							System.out.println(sc.getRemoteAddress() + " tried to register as " + nick);
-						}
-						sendMsg(sc,"ERROR");
-					}
-					
-				}else if(cmd.equals("/join")) {
-					
-					//Does the user have a defined nickname?
-					if(attr[0] != null){
-						
-						sendMsg(sc,"OK");
-						
-						String roomID = par[1];
-						
-						//Is there a room with such ID already creates?
-						if(!findRoom(chatRooms,roomID)){
-							Room r1 = new Room(roomID);
-							chatRooms.add(r1);
-							
-							//Was the user previously on another channel?
-							if(attr[1] != null){
+							//Check if he is in a chat room
+							if(attr[2].equals("inside")){
+								String currRoom = attr[1];
+								
 								sendMsg(sc,"OK");
 								broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
+								
 								System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) left " + attr[1].replace("\n","").replace("\r",""));
 								Room r = getRoom(chatRooms,attr[1]);
 								r.removeMember();
@@ -314,73 +245,164 @@ public class ChatServer
 									chatRooms.remove(r);
 									System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
 								}
+								attr[1] = null;
+								attr[2] = "outside";
+								sc.keyFor(selector).attach(attr);
+							}else{
+								//User isn't in a room
+								sendMsg(sc,"ERROR");
+								System.out.println("User outside of room tried to leave.");
 							}
-							//chatRooms.add(new Room(roomID));
-							attr[1] = roomID;
-							attr[2] = "inside";
-							sc.keyFor(selector).attach(attr);
-							System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) created chatroom " + roomID);
-							 
-						
-						//The user is joining a pre-existing room
 						}else{
+							//User isn't registered
+							sendMsg(sc,"ERROR");
+							System.out.println("Unregistered user tried to leave.");
 							
-							if(attr[1] != null){
-								broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
-							}
-							Room r = getRoom(chatRooms,roomID);
-							r.addMember();
-							attr[1] = roomID;
-							attr[2] = "inside";
-							sc.keyFor(selector).attach(attr);
-							System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) joined chatroom " + roomID);
 						}
 						
-						broadcastMsg(sc,"JOINED " + attr[0].replace("\n","").replace("\r",""),attr);
-					}else{
-						//User has to register a nickname first
-						System.out.println(sc.getRemoteAddress() + "  tried joined a chatroom without registering");
-						sendMsg(sc,"ERROR");
+						
+					}else if(cmd.replace("\n","").replace("\r","").equals("/bye")){
+						
+						nicknames.remove(attr[0]);
+						Room r = getRoom(chatRooms,attr[1]);
+						r.removeMember();
+						
+						if(r.isEmpty()){
+							chatRooms.remove(r);
+							System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
+						}
+						
+						broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
+						sendMsg(sc,"BYE");
+						
+						System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) disconnected ");
+						
+						attr = new String[3];
+						attr[2] = "init";
+						sc.keyFor(selector).attach(attr);
 					}
-					
-					
-				}else if(cmd.equals("/priv")){
-					//Send private message to user
-					if(attr != null){
-						if(attr[0] != null && !attr[2].equals("init")){
+						
+				}else{
+					//It's either /join or /nick
+					if(cmd.equals("/nick")){
+						String nick = par[1];
+						if(!find(nicknames,nick)){
+							nicknames.add(nick);
+							nicknames.remove(attr[0]);
+							sendMsg(sc,"OK");
+							if(attr[1] == null || attr[2].equals("init")){
+								attr[2] = "outside";
+							}else{
+								//System.out.println("NEWNICK " + attr[0] + " " + nick);		
+								broadcastMsg(sc,"NEWNICK " + attr[0].replace("\n","").replace("\r","") + " " + nick,attr);
+							}
+							attr[0] = nick;
+							sc.keyFor(selector).attach(attr);
+							System.out.println(sc.getRemoteAddress() + " registered as " + nick);
+						}else{
+							if(attr[0] != null){
+								String aux = attr[0];
+								aux = aux.replace("\n","").replace("\r","");
+								System.out.println(aux + " tried to register as " + nick);
+							}else{
+								System.out.println(sc.getRemoteAddress() + " tried to register as " + nick);
+							}
+							sendMsg(sc,"ERROR");
+						}
+						
+					}else if(cmd.equals("/join")) {
+						
+						//Does the user have a defined nickname?
+						if(attr[0] != null){
+							
+							sendMsg(sc,"OK");
+							
+							String roomID = par[1];
+							
+							//Is there a room with such ID already creates?
+							if(!findRoom(chatRooms,roomID)){
+								Room r1 = new Room(roomID);
+								chatRooms.add(r1);
 								
-							boolean sent = sendPrivate(sc,"PRIVATEMSG " + attr[0].replace("\n","").replace("\r","") + "  " + message.substring(par[0].length() + par[1].length() + 2).replace("\n","").replace("\r",""),attr,par[1]);
-							if(sent){
-								sendMsg(sc,"OK");
+								//Was the user previously on another channel?
+								if(attr[1] != null){
+									sendMsg(sc,"OK");
+									broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
+									System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) left " + attr[1].replace("\n","").replace("\r",""));
+									Room r = getRoom(chatRooms,attr[1]);
+									r.removeMember();
+									if(r.isEmpty()){
+										chatRooms.remove(r);
+										System.out.println("Chatroom " + r.name.replace("\n","").replace("\r","") + " is empty. Deleting it.");
+									}
+								}
+								//chatRooms.add(new Room(roomID));
+								attr[1] = roomID;
+								attr[2] = "inside";
+								sc.keyFor(selector).attach(attr);
+								System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) created chatroom " + roomID);
+								 
+							
+							//The user is joining a pre-existing room
+							}else{
+								
+								if(attr[1] != null){
+									broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
+								}
+								Room r = getRoom(chatRooms,roomID);
+								r.addMember();
+								attr[1] = roomID;
+								attr[2] = "inside";
+								sc.keyFor(selector).attach(attr);
+								System.out.println(attr[0].replace("\n","").replace("\r","") + "( " + sc.getRemoteAddress() + " ) joined chatroom " + roomID);
+							}
+							
+							broadcastMsg(sc,"JOINED " + attr[0].replace("\n","").replace("\r",""),attr);
+						}else{
+							//User has to register a nickname first
+							System.out.println(sc.getRemoteAddress() + "  tried joined a chatroom without registering");
+							sendMsg(sc,"ERROR");
+						}
+						
+						
+					}else if(cmd.equals("/priv")){
+						//Send private message to user
+						if(attr != null){
+							if(attr[0] != null && !attr[2].equals("init")){
+									
+								boolean sent = sendPrivate(sc,"PRIVATEMSG " + attr[0].replace("\n","").replace("\r","") + "  " + message.substring(par[0].length() + par[1].length() + 2).replace("\n","").replace("\r",""),attr,par[1]);
+								if(sent){
+									sendMsg(sc,"OK");
+								}else{
+									sendMsg(sc,"ERROR");
+								}
 							}else{
 								sendMsg(sc,"ERROR");
-							}
+							}						
 						}else{
 							sendMsg(sc,"ERROR");
-						}						
+						}
+						
+						
 					}else{
+						//Invalid command
+						System.out.println("Invalid command or syntax");
 						sendMsg(sc,"ERROR");
 					}
 					
-					
+				}
+				
+				
+			}else{
+				if(message.charAt(1) == '/')
+					message = message.substring(1);
+				if(attr[1] != null && attr[2].equals("inside")){
+					broadcastMsg(sc,"MESSAGE " + attr[0].replace("\n","").replace("\r","") + " " + message,attr);
 				}else{
-					//Invalid command
-					System.out.println("Invalid command or syntax");
 					sendMsg(sc,"ERROR");
 				}
 				
 			}
-			
-			
-		}else{
-			if(message.charAt(1) == '/')
-				message = message.substring(1);
-			if(attr[1] != null && attr[2].equals("inside")){
-				broadcastMsg(sc,"MESSAGE " + attr[0].replace("\n","").replace("\r","") + " " + message,attr);
-			}else{
-				sendMsg(sc,"ERROR");
-			}
-			
 		}
 		//System.out.println("RECEIVED: "+ message);
 		buffer.flip();

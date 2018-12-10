@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.nio.charset.*;
 import javax.swing.*;
-
+import java.lang.Runtime;
 
 public class ChatClient {
 
@@ -61,11 +61,9 @@ public class ChatClient {
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
 		clientSocket = new Socket(server,port);
-
+		
 
     }
-
-
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
@@ -75,7 +73,7 @@ public class ChatClient {
          new DataOutputStream(this.clientSocket.getOutputStream());
          
       outToServer.write((new String(message + '\n')).getBytes(charset));
-      if(message.charAt(0) == '/'){
+      if(message.charAt(0) == '/' && message.charAt(1) == '/'){
 		  message = message.substring(1);
 	  }
 		printMessage("Tu: " + message + "\n");
@@ -97,6 +95,7 @@ public class ChatClient {
 				return;
 			}
             String[] tokens = msg.split(" ");
+            System.out.println(msg);
             if(tokens[0].equals("MESSAGE")){
 				printMessage(tokens[1] + ": " + msg.substring(8 + tokens[1].length()) + "\n");
 			}else if(tokens[0].equals("NEWNICK")){
@@ -119,6 +118,7 @@ public class ChatClient {
     // * NÃO MODIFICAR *
     public static void main(String[] args) throws IOException {
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
+    
         client.run();
     }
 
