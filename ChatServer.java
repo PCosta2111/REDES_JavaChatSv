@@ -323,6 +323,10 @@ public class ChatServer
 						
 						//The user is joining a pre-existing room
 						}else{
+							
+							if(attr[1] != null){
+								broadcastMsg(sc,"LEFT " + attr[0].replace("\n","").replace("\r",""),attr);
+							}
 							Room r = getRoom(chatRooms,roomID);
 							r.addMember();
 							attr[1] = roomID;

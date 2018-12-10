@@ -97,11 +97,13 @@ public class ChatClient {
             if(tokens[0].equals("MESSAGE")){
 				printMessage(tokens[1] + ": " + msg.substring(8 + tokens[1].length()) + "\n");
 			}else if(tokens[0].equals("NEWNICK")){
-				printMessage(tokens[1] + " mudou de nome para " + tokens[2] + "\n");
+				printMessage(tokens[1] + " mudou de nome para " + tokens[2] + " .\n");
 			}else if(tokens[0].equals("JOINED")){
-				printMessage(tokens[1] + " juntou-se ao chat\n");
+				printMessage(tokens[1] + " juntou-se ao chat.\n");
 			}else if(tokens[0].equals("PRIVATEMSG")){
 				printMessage(tokens[1] + " mandou-lhe uma mensagem privada:" + msg.substring(11 + tokens[1].length()) + "\n");
+			}else if(tokens[0].equals("LEFT")){
+				printMessage(tokens[1] + " saíu da sala.\n");
 			}else{
 				printMessage(msg + "\n");
 			}
